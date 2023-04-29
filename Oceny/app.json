@@ -1,0 +1,17 @@
+{
+  "name": "Oceny",
+  "displayName": "Oceny",
+  "expo": {
+    "ios": {
+      "requireFullScreen": true
+    },
+    "plugins": [
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "DEFAULT"
+        }
+      ]
+    ]
+  }
+}
