@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-    Alert,
   Button,
+  Linking,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -9,7 +9,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface IPhone {
   id: number;
@@ -19,13 +18,13 @@ interface IPhone {
   page: string;
 };
 
-function AddView({navigation}: any): JSX.Element {
+function AddView({navigation, route}: any): JSX.Element {
   const [phone, onChangePhone] = useState<IPhone>({
-    id: 0,
-    producer: '',
-    model: '',
-    androidVersion: '',
-    page: '',
+    id: route.params?.selectedPhone?.id || 0,
+    producer: route.params?.selectedPhone?.producer || '',
+    model: route.params?.selectedPhone?.model || '',
+    androidVersion: route.params?.selectedPhone?.androidVersion || '',
+    page: route.params?.selectedPhone?.page || '',
     });
 
   return (
@@ -66,9 +65,17 @@ function AddView({navigation}: any): JSX.Element {
                     value={phone.page}
                 />
             </View>
-            <Button title="Add" onPress={() => {
+            <Button title={
+                phone.id ? 'Edit' : 'Add'
+            } disabled={
+                !phone.producer || !phone.model || !phone.androidVersion || !phone.page
+            } onPress={() => {
                 navigation.navigate('PhoneDB', {phone});
             }}/>
+
+                {phone.page && <Button  title="Go to website" onPress={() => {
+                            Linking.openURL(phone.page);
+                        }}/>}
           </ScrollView>
       </SafeAreaView>
   );

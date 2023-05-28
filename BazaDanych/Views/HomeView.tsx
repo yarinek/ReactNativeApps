@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import {
-    Alert,
   Button,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
+  Animated
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Swipeable, TouchableOpacity, gestureHandlerRootHOC } from 'react-native-gesture-handler';
 
 interface IPhone {
   id: number;
@@ -19,18 +19,52 @@ interface IPhone {
   page: string;
 };
 
+const defaultPhones = [
+  {
+    id: 1,
+    producer: 'Samsung',
+    model: 'Galaxy S21',
+    androidVersion: 'Android 11',
+    page: 'https://www.gsmmaniak.pl/1198644/samsung-galaxy-s21-plus-test-recenzja/',
+  },
+  {
+    id: 2,
+    producer: 'Samsung',
+    model: 'Galaxy S20',
+    androidVersion: 'Android 10',
+    page: 'https://www.gsmmaniak.pl/1088640/samsung-galaxy-s20-plus-test-recenzja/',
+  },
+  {
+    id: 3,
+    producer: 'Samsung',
+    model: 'Galaxy S10',
+    androidVersion: 'Android 9',
+    page: 'https://www.gsmmaniak.pl/1008640/samsung-galaxy-s10-plus-test-recenzja/',
+  },
+]
+
 function HomeView({navigation, route}: any): JSX.Element {
   const [phones, onChangePhones] = useState<IPhone[]>([]);
+  const [selectedPhone, onChangeSelectedPhone] = useState<IPhone | null>(null);
 
   const clearData = async () => {
     try {
-      console.log('clearing data');
       await AsyncStorage.setItem('phones', '')
       onChangePhones([]);
     } catch (e) {
       return;
     }
   }
+
+  const deletePhone = async (phone: IPhone) => {
+    try {
+      const newPhones = phones.filter((p) => p.id !== phone.id);
+      await AsyncStorage.setItem('phones', JSON.stringify(newPhones))
+      onChangePhones(newPhones);
+    } catch (e) {
+      return;
+    }
+  };
 
   const storePhones = async (value: IPhone[]) => {
     try {
@@ -43,13 +77,57 @@ function HomeView({navigation, route}: any): JSX.Element {
   const getPhones = async () => {
     try {
       const value = await AsyncStorage.getItem('phones');
-      console.log('VALUE after GET:', value)
+      if(!value || !JSON.parse(value as string).length) {
+        storePhones(defaultPhones);
+        onChangePhones(defaultPhones);
+        return;
+      }
       onChangePhones(JSON.parse(value ?? "[]"));
       
     } catch(e) {
       // error reading value
     }
   }
+
+
+
+  const RenderRow = gestureHandlerRootHOC((phone: any): any => (
+    <Swipeable renderRightActions={renderRightActions} onSwipeableWillOpen={() => deletePhone(phone)}>
+      <TouchableOpacity onPress={() => onChangeSelectedPhone(phone)} style={phone.id === selectedPhone?.id ? styles.selectedInputContainer : styles.unselectedInputContainer}>
+        <Text style={styles.text}>{phone.producer}</Text>
+        <Text style={styles.text}>{phone.model}</Text>
+      </TouchableOpacity>
+    </Swipeable>
+      
+  )
+  ) 
+
+
+  const renderRightActions = (
+    progress: any,
+    dragAnimatedValue: any,
+  ) => {
+    const opacity = dragAnimatedValue.interpolate({
+      inputRange: [-150, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+    
+    
+    return (
+      <View style={styles.swipedRow}>
+        <View style={styles.swipedConfirmationContainer}>
+          <Text style={styles.deleteConfirmationText}></Text>
+        </View>
+        <Animated.View style={[styles.deleteButton, {opacity}]}>
+          <TouchableOpacity>
+            <Text style={styles.deleteButtonText}>Delete</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    );
+  };
+  
 
   useEffect(() => { 
     navigation.setOptions({
@@ -61,37 +139,28 @@ function HomeView({navigation, route}: any): JSX.Element {
 
   useEffect(() => {
     if(route.params?.phone) {
-      console.log('adding new phone');
-      const newPhone: IPhone = route.params.phone;
+      if(route.params.phone.id) {
+        const newPhones = phones.map((phone) => {
+          if(phone.id === route.params.phone.id) {
+            return route.params.phone;
+          }
+          return phone;
+        });
+        storePhones(newPhones);
+        getPhones();
+        return;
+      }
+
+      const newPhone: IPhone = {
+        ...route.params.phone,
+        id: phones.length + 1,
+      };
       storePhones([...phones, newPhone]);
       getPhones();
     }
   }, [route.params?.phone]);
 
   useEffect(() => {
-          onChangePhones([
-            {
-              id: 1,
-              producer: 'Samsung',
-              model: 'Galaxy S21',
-              androidVersion: 'Android 11',
-              page: 'https://www.gsmmaniak.pl/1198644/samsung-galaxy-s21-plus-test-recenzja/',
-            },
-            {
-              id: 2,
-              producer: 'Samsung',
-              model: 'Galaxy S20',
-              androidVersion: 'Android 10',
-              page: 'https://www.gsmmaniak.pl/1088640/samsung-galaxy-s20-plus-test-recenzja/',
-            },
-            {
-              id: 3,
-              producer: 'Samsung',
-              model: 'Galaxy S10',
-              androidVersion: 'Android 9',
-              page: 'https://www.gsmmaniak.pl/1008640/samsung-galaxy-s10-plus-test-recenzja/',
-            },
-          ]);
           getPhones();
         
   }, [])
@@ -101,14 +170,12 @@ function HomeView({navigation, route}: any): JSX.Element {
         <ScrollView
           style={styles.container}
           contentInsetAdjustmentBehavior="automatic">
-            {phones.map((phone) => {
-        return <View style={styles.inputContainer}>
-        <Text style={styles.text}>{phone.producer}</Text>
-        <Text style={styles.text}>{phone.model}</Text>
-      </View>;
-      })}
+            {phones.map((phone) => 
+              <RenderRow key={phone.id} {...phone} />
+            )}
           
           </ScrollView>
+          {selectedPhone?.id && <Button title="Edit" onPress={() => navigation.navigate('AddView', {selectedPhone})} />} 
           <Button title="+" onPress={() => navigation.navigate('AddView', {})} />
       </SafeAreaView>
   );
@@ -120,7 +187,14 @@ const styles = StyleSheet.create({
     display: 'flex',
     backgroundColor: 'lightgray',
   },
-  inputContainer: {
+  selectedInputContainer: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: 'lightblue'
+  },
+  unselectedInputContainer: {
     flex: 1,
     display: 'flex',
     flexDirection: 'row',
@@ -155,6 +229,32 @@ const styles = StyleSheet.create({
   },
   highlight: {
     fontWeight: '700',
+  },
+  swipedRow: {
+    flexDirection: 'row',
+    flex: 1,
+    alignItems: 'center',
+    paddingLeft: 5,
+    backgroundColor: '#818181',
+    minHeight: 50,
+  },
+  swipedConfirmationContainer: {
+    flex: 1,
+  },
+  deleteConfirmationText: {
+    color: '#fcfcfc',
+    fontWeight: 'bold',
+  },
+  deleteButton: {
+    backgroundColor: '#b60000',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    height: '100%',
+  },
+  deleteButtonText: {
+    color: '#fcfcfc',
+    fontWeight: 'bold',
+    padding: 3,
   },
 });
 
