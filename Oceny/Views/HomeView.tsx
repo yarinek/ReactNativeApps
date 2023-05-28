@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-
 function HomeView({navigation, route}: any): JSX.Element {
   const [name, onChangeName] = useState('');
   const [surname, onChangeSurname] = useState('');
